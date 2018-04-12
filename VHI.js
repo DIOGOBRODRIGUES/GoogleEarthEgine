@@ -22,45 +22,45 @@ function maskLsr(image) {
 var l5out98 = l5sr.filterDate('1998-10-01', '1998-10-31')
                     .map(maskLsr)
                     .median();
-					
+
 var l5out06 = l5sr.filterDate('2006-10-01', '2006-10-31')
                     .map(maskLsr)
                     .median();
-					
+
 var l5out10 = l5sr.filterDate('2010-10-01', '2010-10-31')
                     .map(maskLsr)
                     .median();
-					
+
 var l8out16 = l8sr.filterDate('2016-10-01', '2016-10-31')
                     .map(maskLsr)
                     .median();
 
 
-//radiancia					
-var radl5out98 = ee.Algorithms.Landsat.calibratedRadiance(l5out98);	
+//radiancia
+var radl5out98 = ee.Algorithms.Landsat.calibratedRadiance(l5out98);
 
 var radl5out06 = ee.Algorithms.Landsat.calibratedRadiance(l5out06);
 
 var radl5out10 = ee.Algorithms.Landsat.calibratedRadiance(l5out10);
 
-var radl8out16 = ee.Algorithms.Landsat.calibratedRadiance(l8out16);	
+var radl8out16 = ee.Algorithms.Landsat.calibratedRadiance(l8out16);
 
 
 //reflectancia
-var toal5out98 = ee.Algorithms.Landsat.TOA(l5out98);	
+var toal5out98 = ee.Algorithms.Landsat.TOA(l5out98);
 
 var toal5out06 = ee.Algorithms.Landsat.TOA(l5out06);
 
 var toal5out10 = ee.Algorithms.Landsat.TOA(l5out10);
 
-var toal8out16 = ee.Algorithms.Landsat.TOA(l8out16);	
+var toal8out16 = ee.Algorithms.Landsat.TOA(l8out16);
 
 
 
 // Adicionar mapa no display.
 Map.addLayer(l5out98, null, 'toa');
 
-
+// adicionando 
 //NDVI
 var ndvil5out98 = toal5out98.normalizedDifference(['B4', 'B3']).rename('NDVIl5out98');
 
@@ -148,21 +148,21 @@ var enbl8out16 = toal5out98.expression(
     '(ndvi>0)*(iaf<3)*(0.97+0.0033*iaf)+(iaf>=3)*0.98+(ndvi<0)*0.99', {
      'iaf': iafl8out16,
      'ndvi': ndvil8out16
-});	
+});
 
 //temperatura
 var temp5out98 = toal5out98.expression(
     'k2/log(enb*k1/l6+1)', {
      'k2':1260.56,
-	    'k1':607.76, 
+	    'k1':607.76,
 	   'enb': enbl5out98,
      'l6': toal5out98.select('B10')
-});	
+});
 
 var templ5out06 = toal5out98.expression(
     'k2/log(enb*k1/l6+1)', {
      'k2':1260.56,
-	 'k1':607.76, 
+	 'k1':607.76,
 	 'enb': enbl5out06,
      'l6': toal5out06.select('B10')
 });
@@ -171,7 +171,7 @@ var templ5out06 = toal5out98.expression(
 var templ5out10 = toal5out98.expression(
     'k2/log(enb*k1/l6+1)', {
      'k2':1260.56,
-	 'k1':607.76, 
+	 'k1':607.76,
 	 'enb': enbl5out10,
      'l6': toal5out10.select('B10')
 });
@@ -182,7 +182,7 @@ var templ5out10 = toal5out98.expression(
 var templ8out16 = toal5out98.expression(
     'k2/log(enb*k1/l6+1)', {
      'k2':k2,
-	    'k1':k1, 
+	    'k1':k1,
 	    'enb': enbl8out16,
      'l6': toal8out16.select('B10')
 });
