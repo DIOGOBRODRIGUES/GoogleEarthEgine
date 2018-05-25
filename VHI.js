@@ -8,7 +8,7 @@ var ColecaoL8= ee.ImageCollection('LANDSAT/LC08/C01/T1');
 //shapefile da bacia do Pajeú
 var table = ee.FeatureCollection('users/diogoborbar/bacia_pajeu');
 
-// Mascara de nuvem.
+// Mascara de nuvem
 function maskL5(image) {
    var clouds = ee.Algorithms.Landsat.simpleCloudScore(image).select('BQA');
    //672 cod para pixel limpo no LANDSAT 5
@@ -36,16 +36,17 @@ function NDVIL5(image){
   var IAF = image.expression('-log((0.69-savi)/0.59)/0.91',{
     'savi': SAVI
   });
- return image.addBands(NDVI).addBands(SAVI).addBands(IAF);
+ return image.addBands(NDVI.rename('ndvi')).addBands(SAVI.rename('savi'))
+             .addBands(IAF.rename('iaf'));
 }
 
 //Enb --> B4_2_1_1
 function Enb(image){
     var enb= image.expression('(NDVI>0)*(IAF<3)*(0.97+0.0033*IAF)+(IAF>=3)*0.98+(NDVI<0)*0.99', {
-      'IAF': image.select('constant_1'),
-      'NDVI': image.select('B4_2_1')
+      'IAF': image.select('iaf'),
+      'NDVI': image.select('ndvi')
   });
- return image.addBands(enb);
+ return image.addBands(enb.rename('enb'));
 }
 
 //temperatura de superficie
@@ -53,14 +54,14 @@ function Tempsuper(image){
   var tempL5 = image.expression('k2/log(enb*k1/l6+1)-273.15', {
      'k2':ee.Number(image.get('K2_CONSTANT_BAND_6')),
      'k1':ee.Number(image.get('K1_CONSTANT_BAND_6')),
-     'enb': image.select('B4_2_1_1'),
+     'enb': image.select('enb'),
      'l6': image.select('B6_1')
   });
-  return image.addBands(tempL5);
+  return image.addBands(tempL5.rename('lst'));
 }
 
 // Funcao para calculo do VCI e TCI -->NDVI_1 constant
-function VCITCI (image, variavel, equacao){
+function VCITCI (image, variavel, equacao, nome){
   var Max= image.select(variavel).reduceRegion({
       reducer:ee.Reducer.max(),
       geometry:table,
@@ -73,12 +74,12 @@ function VCITCI (image, variavel, equacao){
       scale:90
      });
 
-  var vci = image.expression(equacao,{
+  var vcitci = image.expression(equacao,{
     'valor':image.select(variavel),
     'min': ee.Number(Min.get(variavel)),
     'max': ee.Number(Max.get(variavel))
   });
-  return image.addBands(vci);
+  return image.addBands(vcitci.rename(nome));
 }
 
 //implementacao das funcoes na biblioteca das imagens
@@ -89,24 +90,17 @@ var L5 = ColecaoL5.filterBounds(table)
                    .map(NDVIL5)
                    .map(Enb)
                    .map(Tempsuper)
-                   .median();
-
-//nova imagem com duas bandas renomeadas
-var L5NdviTci = L5.select(
-    ['B4_2_1', 'constant_2'], // old names
-    ['NDVI', 'LST'] // new names
-    );
-
-//recorte shape da bacia
-var L5NdviTci_cliped = L5NdviTci.clip(table);
+                   .median()
+                   .clip(table);
+Map.addLayer(L5);
 
 //Calulo do VCI e TCI
-var resultadoVCI = VCITCI(L5NdviTci_cliped, 'NDVI', '(valor-0.2)/(max-0.2)*100');
-var resultadoTCI = VCITCI(L5NdviTci_cliped, 'LST', '(max-valor)/(max-min)*100');
+var resultadoVCI = VCITCI(L5, 'ndvi', '(valor-0.2)/(max-0.2)*100','vci');
+var resultadoTCI = VCITCI(L5, 'lst', '(max-valor)/(max-min)*100','tci');
 
 var VHI = ee.Image().expression('0.5*VCI+0.5*TCI',{
-  'VCI':resultadoVCI.select('NDVI_1'),
-  'TCI':resultadoTCI.select('constant')
+  'VCI':resultadoVCI.select('vci'),
+  'TCI':resultadoTCI.select('tci')
 });
 var VHIParams = {min: 10, max: 40, palette: ['red', 'white', 'green']};
-Map.addLayer(VHI, VHIParams);
+Map.addLayer(VHI, VHIParams,'VHI');
